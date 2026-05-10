@@ -1,0 +1,51 @@
+{% extends 'layouts/main.html' %} {% block title %}Home{% endblock %} {% block
+  content %}
+  <script>
+    var mykey = config.MY_KEY;
+    var secretkey = config.SECRET_KEY;
+  
+    mapboxgl.accessToken = mykey;
+  
+    var map = new mapboxgl.Map({
+    container: 'map',
+    style: secretkey, // stylesheet location
+    center: [-74.5, 40], // starting position [lng, lat]
+    zoom: 3 // starting zoom
+    });
+  
+  
+    var satellites = {{ output|safe }}
+    satellites.forEach(function(marker) {
+      // create the popup
+      var popup = new mapboxgl.Popup({ offset: 25 }).setText(marker.name, marker.longitude);
+  
+      // create a HTML element for each feature
+      var el = document.createElement('div');
+      el.className = 'marker';
+      el.classList.add('showsidebar')
+  
+      // make a marker for each feature and add to the map
+      new mapboxgl.Marker(el)
+        .setLngLat([parseFloat(marker.longitude), parseFloat(marker.latitude)])
+        .setPopup(popup)
+        .addTo(map);
+    });
+    var fires = {{ fireData|safe }}
+    fires.forEach(function(fire) {
+      // create the popup
+      var popup = new mapboxgl.Popup({ offset: 25 }).setText(fire.Name);
+  
+      // create a HTML element for each feature
+      var el = document.createElement('div');
+      el.className = 'fire';
+  
+      // make a marker for each feature and add to the map
+  
+      new mapboxgl.Marker(el)
+      .setLngLat([parseFloat(fire.Longitude), parseFloat(fire.Latitude)])
+      .setPopup(popup)
+      .addTo(map);
+    })
+  </script>
+  
+  {% endblock %}

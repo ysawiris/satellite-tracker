@@ -1,0 +1,10 @@
+*.pyc
+.DS_Store
+env
+venv
+SLTrack.ini
+__pycache__
+database.db
+error.log
+demofile4.txt
+static/js/config.js
