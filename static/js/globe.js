@@ -192,7 +192,8 @@ export class GlobeView {
             height: 14,
             color: Cesium.Color.fromCssColorString(sat.color),
             scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.4, 4e7, 0.6),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            // Depth-test against the globe so satellites on the far side
+            // of Earth get hidden behind it.
           },
         });
         entity._satMeta = sat;
