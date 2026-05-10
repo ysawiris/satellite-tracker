@@ -1,6 +1,6 @@
-# Rain Satellite Tracker
+# Satellite Tracker
 
-Rain Satellite Tracker is a Python library for tracker satellite at any given date and time.
+Satellite Tracker is a Python library for tracking satellites at any given date and time.
 
 ## Installation after Cloning
 Create a virtual enviroment
@@ -11,7 +11,7 @@ python3 -m venv env
 source env/bin/activate
 ```
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install Rain Satellite Tracker dependencies.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install Satellite Tracker dependencies.
 ```bash
 pip install -r requirement.txt
 ```
