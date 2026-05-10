@@ -15,6 +15,7 @@ from skyfield.api import EarthSatellite
 from .satellites.celestrak import CelestrakError, fetch_tles
 from .satellites.compute import build_satellite, position_now, predict_passes
 from .satellites.groups import GROUPS, get_group, serialize_group
+from .satellites.metadata import get_sensor_info
 from .satellites.tle_cache import TLECache
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,10 @@ def group_satellites(group_id: str):
             pos = position_now(sat)
             pos["group"] = group.id
             pos["color"] = group.color
+            info = get_sensor_info(pos["norad_id"], group.id)
+            pos["sensor_type"] = info.sensor_type
+            pos["all_weather"] = info.all_weather
+            pos["sensor_description"] = info.description
             out.append(pos)
         except Exception:
             logger.exception("Failed to compute position for %s", tle[0])
@@ -75,7 +80,12 @@ def satellite_detail(norad_id: int):
     sat = _find_satellite_by_norad(norad_id)
     if not sat:
         return _err(f"Satellite {norad_id} not found", 404)
-    return _ok(position_now(sat))
+    pos = position_now(sat)
+    info = get_sensor_info(pos["norad_id"])
+    pos["sensor_type"] = info.sensor_type
+    pos["all_weather"] = info.all_weather
+    pos["sensor_description"] = info.description
+    return _ok(pos)
 
 
 @bp.get("/satellites/<int:norad_id>/passes")

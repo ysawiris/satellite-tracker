@@ -12,9 +12,12 @@ const SAT_SVG = `<svg viewBox="0 0 18 10" width="18" height="10" fill="currentCo
   <rect x="7.8" y="3" width="2.4" height="4" fill="rgba(0,0,0,0.35)" rx="0.4"/>
 </svg>`;
 
-function makeIcon(color, isSelected = false) {
+function makeIcon(color, { isSelected = false, allWeather = false } = {}) {
+  const cls = ["sat-icon"];
+  if (isSelected) cls.push("selected");
+  if (allWeather) cls.push("all-weather");
   return L.divIcon({
-    className: `sat-icon${isSelected ? " selected" : ""}`,
+    className: cls.join(" "),
     html: `<span style="color:${color};display:block;line-height:0;">${SAT_SVG}</span>`,
     iconSize: [18, 10],
     iconAnchor: [9, 5],
@@ -87,7 +90,7 @@ export class MapView {
         existing._satMeta = sat;
       } else {
         const marker = L.marker([sat.lat, sat.lon], {
-          icon: makeIcon(sat.color),
+          icon: makeIcon(sat.color, { allWeather: !!sat.all_weather }),
           riseOnHover: true,
         });
         marker.bindTooltip(sat.name, { className: "sat-tooltip", direction: "top", offset: [0, -8] });

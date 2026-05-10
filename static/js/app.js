@@ -49,6 +49,7 @@ setupObserverInputs();
 setupPassesRefresh();
 setupFavoriteToggle();
 setupLocateMe();
+setupCloudsToggle();
 
 // ---------- Initial load ----------
 
@@ -135,10 +136,41 @@ function selectSatellite(sat) {
   document.getElementById("detail-alt").textContent = sat.alt_km.toFixed(1) + " km";
   document.getElementById("detail-vel").textContent = sat.velocity_kms.toFixed(2) + " km/s";
 
+  renderSensorBadge(sat);
   updateFavoriteButton();
   mapView.highlight(sat.norad_id);
   if (globeView.viewer) globeView.highlight(sat.norad_id);
   loadPasses(sat);
+}
+
+const SENSOR_LABELS = {
+  radar: { label: "All-weather radar", icon: "☁︎" },
+  optical: { label: "Optical (cloud-blocked)", icon: "◉" },
+  ir: { label: "Infrared (cloud-blocked)", icon: "▮" },
+  comms: { label: "Comms link", icon: "≋" },
+  navigation: { label: "Navigation", icon: "✚" },
+  unknown: { label: "Sensor unknown", icon: "?" },
+};
+
+function renderSensorBadge(sat) {
+  const wrap = document.getElementById("detail-sensor");
+  const chip = document.getElementById("detail-sensor-chip");
+  const note = document.getElementById("detail-sensor-note");
+  if (!sat.sensor_type) {
+    wrap.classList.add("hidden");
+    return;
+  }
+  const meta = SENSOR_LABELS[sat.sensor_type] || SENSOR_LABELS.unknown;
+  chip.className = `sensor-chip ${sat.sensor_type}`;
+  chip.innerHTML = `<span aria-hidden="true">${meta.icon}</span>${meta.label}`;
+  if (sat.all_weather) {
+    note.innerHTML = `<strong>Sees through clouds.</strong> ${escapeHtml(sat.sensor_description || "")}`;
+  } else if (sat.sensor_description) {
+    note.textContent = sat.sensor_description;
+  } else {
+    note.textContent = "";
+  }
+  wrap.classList.remove("hidden");
 }
 
 async function loadPasses(sat) {
@@ -199,11 +231,13 @@ function formatDuration(seconds) {
 
 function setupViewToggle() {
   const buttons = document.querySelectorAll(".view-btn");
+  const cloudsBtn = document.getElementById("clouds-toggle");
   function apply(view) {
     store.set({ view });
     document.getElementById("map-view").classList.toggle("hidden", view !== "map");
     document.getElementById("globe-view").classList.toggle("hidden", view !== "globe");
     buttons.forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === view));
+    cloudsBtn.classList.toggle("hidden", view !== "globe");
     if (view === "map") {
       setTimeout(() => mapView.resize(), 50);
     } else {
@@ -217,6 +251,16 @@ function setupViewToggle() {
   }
   buttons.forEach((b) => b.addEventListener("click", () => apply(b.dataset.view)));
   apply("map");
+}
+
+function setupCloudsToggle() {
+  const btn = document.getElementById("clouds-toggle");
+  btn.addEventListener("click", () => {
+    const on = btn.getAttribute("aria-pressed") !== "true";
+    btn.setAttribute("aria-pressed", String(on));
+    btn.style.color = on ? "var(--accent-cyan)" : "";
+    if (globeView.viewer) globeView.setCloudsVisible(on);
+  });
 }
 
 // ---------- Sidebar (mobile) ----------

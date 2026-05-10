@@ -32,6 +32,11 @@
         <button data-view="map" class="view-btn">2D Map</button>
         <button data-view="globe" class="view-btn">3D Globe</button>
       </div>
+      <button id="clouds-toggle" class="icon-btn hidden" title="Toggle live cloud cover" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.5 19a4.5 4.5 0 100-9 6 6 0 00-11.7 1.5A4 4 0 006 19h11.5z"/>
+        </svg>
+      </button>
       <button id="locate-me" class="icon-btn" title="Use my location">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
@@ -159,6 +164,10 @@
               <div class="stat-label">Velocity</div>
               <div id="detail-vel" class="stat-value accent"></div>
             </div>
+          </div>
+          <div id="detail-sensor" class="mt-3 hidden">
+            <span id="detail-sensor-chip" class="sensor-chip"></span>
+            <p id="detail-sensor-note" class="sensor-note"></p>
           </div>
         </div>
 

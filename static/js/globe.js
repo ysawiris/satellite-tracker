@@ -1,7 +1,7 @@
 // 3D globe view backed by CesiumJS, lazy-loaded on first activation.
 // Uses OpenStreetMap imagery and satellite-shaped billboards.
 
-const CESIUM_VERSION = "1.118";
+const CESIUM_VERSION = "1.105";
 const CESIUM_BASE = `https://cdn.jsdelivr.net/npm/cesium@${CESIUM_VERSION}/Build/Cesium`;
 
 const SAT_BILLBOARD = "data:image/svg+xml;utf8," + encodeURIComponent(
@@ -52,7 +52,16 @@ export class GlobeView {
     const Cesium = await ensureCesiumLoaded();
     Cesium.Ion.defaultAccessToken = "";
 
+    // Base layer: ESRI World Imagery (clear-sky satellite photography).
+    const baseProvider = new Cesium.UrlTemplateImageryProvider({
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      credit: "Esri, Maxar, Earthstar Geographics",
+      maximumLevel: 18,
+    });
+
     this.viewer = new Cesium.Viewer(this.containerId, {
+      imageryProvider: baseProvider,
+      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -63,14 +72,36 @@ export class GlobeView {
       fullscreenButton: false,
       infoBox: false,
       selectionIndicator: false,
-      imageryProvider: new Cesium.OpenStreetMapImageryProvider({
-        url: "https://tile.openstreetmap.org/",
-      }),
     });
 
-    this.viewer.scene.globe.enableLighting = true;
+    // Overlay: live NASA MODIS true-color (yesterday's pass). Shows actual
+    // current cloud cover on top of clear-sky ESRI imagery.
+    const date = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
+    const cloudProvider = new Cesium.UrlTemplateImageryProvider({
+      url: `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Aqua_CorrectedReflectance_TrueColor/default/${date}/250m/{z}/{y}/{x}.jpg`,
+      credit: "NASA GIBS &middot; MODIS",
+      maximumLevel: 7,
+      tilingScheme: new Cesium.GeographicTilingScheme(),
+      rectangle: Cesium.Rectangle.MAX_VALUE,
+    });
+    this.cloudLayer = this.viewer.imageryLayers.addImageryProvider(cloudProvider);
+    this.cloudLayer.alpha = 0.55;
+
+    // Force opaque globe — Cesium boots with translucency settings that
+    // sometimes leave the surface invisible until poked.
+    const globe = this.viewer.scene.globe;
+    globe.show = true;
+    globe.translucency.enabled = false;
+    globe.translucency.frontFaceAlpha = 1.0;
+    globe.translucency.backFaceAlpha = 1.0;
+    globe.depthTestAgainstTerrain = false;
+    globe.baseColor = Cesium.Color.fromCssColorString("#0a1a3a");
+    globe.enableLighting = true;
     this.viewer.scene.skyBox.show = true;
     this.viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#02030e");
+    // Switch off explicit-render mode so Cesium pumps frames continuously.
+    this.viewer.scene.requestRenderMode = false;
+    this.viewer.useDefaultRenderLoop = true;
 
     this.viewer.screenSpaceEventHandler.setInputAction((event) => {
       const picked = this.viewer.scene.pick(event.position);
@@ -78,6 +109,29 @@ export class GlobeView {
         this.onSelect(picked.id._satMeta);
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    // Cesium 1.x sometimes refuses to fetch the first imagery tiles until
+    // the user actually interacts with the canvas. Dispatch a synthetic mouse
+    // gesture and reset the surface tile-render queue to kick it awake.
+    setTimeout(() => {
+      if (!this.viewer) return;
+      const canvas = this.viewer.canvas;
+      const surface = this.viewer.scene.globe._surface;
+      if (surface && Array.isArray(surface._tilesToRenderByTextureCount)) {
+        surface._tilesToRenderByTextureCount = [];
+      }
+      canvas.dispatchEvent(new MouseEvent("mousedown", { clientX: canvas.width / 2, clientY: canvas.height / 2, bubbles: true }));
+      canvas.dispatchEvent(new MouseEvent("mouseup", { clientX: canvas.width / 2, clientY: canvas.height / 2, bubbles: true }));
+      this.viewer.scene.requestRender();
+    }, 100);
+
+  }
+
+  setCloudsVisible(show) {
+    if (this.cloudLayer) this.cloudLayer.show = show;
+  }
+  setCloudsOpacity(alpha) {
+    if (this.cloudLayer) this.cloudLayer.alpha = Math.max(0, Math.min(1, alpha));
   }
 
   resize() {
