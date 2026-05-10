@@ -43,7 +43,6 @@ const mapView = new MapView("map-view", { onSelect: selectSatellite });
 const globeView = new GlobeView("globe-view", { onSelect: selectSatellite });
 
 setupViewToggle();
-setupThemeToggle();
 setupSidebarToggle();
 setupSearch();
 setupObserverInputs();
@@ -59,6 +58,7 @@ setupLocateMe();
     const visible = Array.from(store.get().visibleGroups);
     await Promise.all(visible.map(refreshGroup));
     setStatus(summarizeStatus());
+    hideLoadingOverlay();
     setInterval(() => {
       const v = Array.from(store.get().visibleGroups);
       Promise.all(v.map(refreshGroup)).then(() => setStatus(summarizeStatus()));
@@ -66,9 +66,17 @@ setupLocateMe();
   } catch (err) {
     console.error(err);
     setStatus(`Error: ${err.message}`);
+    hideLoadingOverlay();
   }
   renderFavorites();
 })();
+
+function hideLoadingOverlay() {
+  const overlay = document.getElementById("loading-overlay");
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+  setTimeout(() => overlay.remove(), 500);
+}
 
 // ---------- Data refresh ----------
 
@@ -162,12 +170,12 @@ async function loadPasses(sat) {
 function renderPasses(passes) {
   const list = document.getElementById("passes-list");
   list.innerHTML = passes.map((p) => `
-    <li class="rounded border border-slate-200 p-2 dark:border-slate-700">
-      <div class="font-medium">${formatDateTime(p.rise_utc)}</div>
-      <div class="mt-1 grid grid-cols-3 gap-2 text-slate-500">
-        <div>Max alt: <span class="font-mono">${p.max_altitude_deg ?? "?"}°</span></div>
-        <div>Az: <span class="font-mono">${p.azimuth_deg ?? "?"}°</span></div>
-        <div>Duration: <span class="font-mono">${formatDuration(p.duration_seconds)}</span></div>
+    <li class="pass-card fade-in">
+      <div class="pass-time">${formatDateTime(p.rise_utc)}</div>
+      <div class="pass-stats">
+        <div>Max alt <span class="v">${p.max_altitude_deg ?? "?"}°</span></div>
+        <div>Az <span class="v">${p.azimuth_deg ?? "?"}°</span></div>
+        <div>Dur <span class="v">${formatDuration(p.duration_seconds)}</span></div>
       </div>
     </li>
   `).join("");
@@ -211,17 +219,6 @@ function setupViewToggle() {
   apply("map");
 }
 
-// ---------- Theme ----------
-
-function setupThemeToggle() {
-  document.getElementById("theme-toggle").addEventListener("click", () => {
-    const html = document.documentElement;
-    const next = html.classList.contains("dark") ? "light" : "dark";
-    html.classList.toggle("dark", next === "dark");
-    localStorage.setItem("theme", next);
-  });
-}
-
 // ---------- Sidebar (mobile) ----------
 
 function setupSidebarToggle() {
@@ -248,13 +245,13 @@ function setupSearch() {
       try {
         const list = await api.search(q);
         if (list.length === 0) {
-          results.innerHTML = `<div class="px-3 py-2 text-xs text-slate-400">No matches.</div>`;
+          results.innerHTML = `<div style="padding:10px 14px;font-size:12px;color:var(--text-subtle);">No matches.</div>`;
         } else {
           results.innerHTML = list.map((s) => `
             <div class="search-result" data-norad="${s.norad_id}" data-name="${escapeHtml(s.name)}">
               <span class="badge">${s.group}</span>
               <span>${escapeHtml(s.name)}</span>
-              <span class="ml-auto text-xs text-slate-400">#${s.norad_id ?? "?"}</span>
+              <span class="norad">#${s.norad_id ?? "?"}</span>
             </div>
           `).join("");
           results.querySelectorAll(".search-result").forEach((el) => {
@@ -268,7 +265,7 @@ function setupSearch() {
         }
         results.classList.remove("hidden");
       } catch (err) {
-        results.innerHTML = `<div class="px-3 py-2 text-xs text-red-500">Error: ${escapeHtml(err.message)}</div>`;
+        results.innerHTML = `<div style="padding:10px 14px;font-size:12px;color:var(--accent-rose);">Error: ${escapeHtml(err.message)}</div>`;
         results.classList.remove("hidden");
       }
     }, 250);
@@ -383,11 +380,10 @@ function updateFavoriteButton() {
   const sel = store.get().selected;
   const btn = document.getElementById("detail-favorite");
   if (!sel) return;
-  const svg = btn.querySelector("svg");
   if (isFavorite(sel.norad_id, store.get().favorites)) {
-    svg.classList.add("favorite-active");
+    btn.classList.add("active");
   } else {
-    svg.classList.remove("favorite-active");
+    btn.classList.remove("active");
   }
 }
 
@@ -395,14 +391,14 @@ function renderFavorites() {
   const list = document.getElementById("favorites-list");
   const favs = store.get().favorites;
   if (favs.length === 0) {
-    list.innerHTML = `<li class="px-2 py-1 text-xs italic text-slate-400">No favorites yet — star a satellite to save it.</li>`;
+    list.innerHTML = `<li class="fav-empty">No favorites yet — star a satellite to save it.</li>`;
     return;
   }
   list.innerHTML = favs.map((f) => `
     <li>
-      <button data-norad="${f.norad_id}" class="flex w-full items-center justify-between rounded px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
-        <span class="truncate">${escapeHtml(f.name)}</span>
-        <span class="text-xs text-slate-400">#${f.norad_id}</span>
+      <button data-norad="${f.norad_id}" class="fav-row">
+        <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.name)}</span>
+        <span class="norad">#${f.norad_id}</span>
       </button>
     </li>
   `).join("");
@@ -414,7 +410,8 @@ function renderFavorites() {
 // ---------- Status & helpers ----------
 
 function setStatus(text) {
-  document.getElementById("status").textContent = text;
+  const el = document.getElementById("status-text");
+  if (el) el.textContent = text;
 }
 
 function summarizeStatus() {

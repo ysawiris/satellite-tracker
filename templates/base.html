@@ -1,31 +1,43 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Track satellites in real-time on a 2D map and 3D globe." />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#050816" />
   <title>{% block title %}Satellite Tracker{% endblock %}</title>
 
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='ico/favicon.png') }}" />
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
   <script>
-    // Apply theme before paint to avoid flash.
-    (function () {
-      const t = localStorage.getItem('theme') || 'dark';
-      if (t === 'dark') document.documentElement.classList.add('dark');
-    })();
-    // Tailwind config (Play CDN — fine for a personal project).
     window.tailwind = window.tailwind || {};
-    window.tailwind.config = { darkMode: 'class' };
+    window.tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'Inter', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          },
+        },
+      },
+    };
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
 </head>
-<body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased">
+<body class="h-full">
+  <div class="cosmic-bg" aria-hidden="true">
+    <div id="starfield"></div>
+  </div>
   {% block body %}{% endblock %}
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

@@ -1,8 +1,7 @@
-// 2D map view backed by Leaflet + OpenStreetMap.
+// 2D map view backed by Leaflet + dark CartoDB tiles, with glowing satellite markers.
 
-const TILE_LIGHT = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const TILE_DARK = "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
-const TILE_ATTR = '&copy; OpenStreetMap contributors';
+const TILE_DARK = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
+const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &middot; &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 export class MapView {
   constructor(containerId, { onSelect } = {}) {
@@ -11,28 +10,22 @@ export class MapView {
       minZoom: 2,
       maxZoom: 9,
       zoomControl: true,
+      attributionControl: true,
+      preferCanvas: true,
     }).setView([20, 0], 2);
 
-    this.tileLayer = L.tileLayer(this._tileForTheme(), {
+    this.tileLayer = L.tileLayer(TILE_DARK, {
       attribution: TILE_ATTR,
-      subdomains: "abc",
+      subdomains: "abcd",
       noWrap: false,
     }).addTo(this.map);
 
+    this.canvasRenderer = L.canvas({ padding: 0.5 });
+
     this.markers = new Map(); // norad_id -> Leaflet circleMarker
     this.observerMarker = null;
+    this.selectedId = null;
     this.onSelect = onSelect || (() => {});
-    this._setupThemeWatcher();
-  }
-
-  _tileForTheme() {
-    return document.documentElement.classList.contains("dark") ? TILE_DARK : TILE_LIGHT;
-  }
-
-  _setupThemeWatcher() {
-    new MutationObserver(() => {
-      this.tileLayer.setUrl(this._tileForTheme());
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   }
 
   resize() {
@@ -51,12 +44,18 @@ export class MapView {
       this.observerMarker = L.marker([lat, lon], {
         icon: L.divIcon({
           className: "",
-          html: `<div style="width:14px;height:14px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 6px rgba(34,197,94,0.7);"></div>`,
-          iconSize: [14, 14],
-          iconAnchor: [7, 7],
+          html: `
+            <div style="position:relative;width:18px;height:18px;">
+              <div style="position:absolute;inset:0;border-radius:50%;background:#34d399;box-shadow:0 0 0 2px rgba(5,8,22,0.85), 0 0 16px rgba(52,211,153,0.8);"></div>
+              <div style="position:absolute;inset:-6px;border-radius:50%;border:1.5px solid rgba(52,211,153,0.6);animation:obs-ping 2s ease-out infinite;"></div>
+            </div>
+            <style>@keyframes obs-ping { 0% {transform:scale(0.8);opacity:1;} 100% {transform:scale(2);opacity:0;} }</style>
+          `,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
         }),
       }).addTo(this.map);
-      this.observerMarker.bindTooltip("You", { permanent: false });
+      this.observerMarker.bindTooltip("You", { className: "sat-tooltip", direction: "top", offset: [0, -8] });
     } else {
       this.observerMarker.setLatLng([lat, lon]);
     }
@@ -69,19 +68,21 @@ export class MapView {
       const existing = this.markers.get(sat.norad_id);
       if (existing) {
         existing.setLatLng([sat.lat, sat.lon]);
+        existing._satMeta = sat;
       } else {
         const marker = L.circleMarker([sat.lat, sat.lon], {
-          radius: 4,
-          weight: 1,
-          color: "white",
+          radius: 3.5,
+          weight: 1.5,
+          color: sat.color,
           fillColor: sat.color,
-          fillOpacity: 0.9,
-          className: "satellite-marker",
+          fillOpacity: 0.85,
+          opacity: 0.95,
+          renderer: this.canvasRenderer,
         });
         marker.bindTooltip(sat.name, { className: "sat-tooltip", direction: "top", offset: [0, -4] });
         marker.on("click", () => this.onSelect(sat));
-        marker.addTo(this.map);
         marker._satMeta = sat;
+        marker.addTo(this.map);
         this.markers.set(sat.norad_id, marker);
       }
     }
@@ -98,16 +99,31 @@ export class MapView {
   }
 
   highlight(noradId) {
-    for (const [id, marker] of this.markers) {
-      const meta = marker._satMeta;
-      marker.setStyle({
-        radius: id === noradId ? 7 : 4,
-        weight: id === noradId ? 2 : 1,
-        color: id === noradId ? "#facc15" : "white",
-        fillColor: meta ? meta.color : marker.options.fillColor,
-      });
-      if (id === noradId) marker.bringToFront();
+    // Reset previous selection
+    if (this.selectedId != null && this.selectedId !== noradId) {
+      const prev = this.markers.get(this.selectedId);
+      if (prev) {
+        const meta = prev._satMeta;
+        prev.setStyle({
+          radius: 3.5,
+          weight: 1.5,
+          color: meta?.color,
+          fillColor: meta?.color,
+          fillOpacity: 0.85,
+        });
+      }
     }
+    this.selectedId = noradId;
+    const marker = this.markers.get(noradId);
+    if (!marker) return;
+    marker.setStyle({
+      radius: 7,
+      weight: 2.5,
+      color: "#fbbf24",
+      fillColor: "#fbbf24",
+      fillOpacity: 1,
+    });
+    marker.bringToFront();
   }
 
   panTo(lat, lon) {
