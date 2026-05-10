@@ -601,6 +601,44 @@ h1, h2, h3, .font-display {
 .btn-link:hover { text-shadow: var(--glow-cyan); }
 
 /* ============================================================
+   Satellite icons (Leaflet divIcon)
+   ============================================================ */
+
+.sat-icon {
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 150ms ease;
+  will-change: transform;
+}
+.sat-icon span {
+  filter: drop-shadow(0 0 2px currentColor);
+  transition: filter 150ms ease;
+}
+.sat-icon:hover {
+  transform: scale(1.5);
+  z-index: 600 !important;
+}
+.sat-icon:hover span {
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 10px currentColor);
+}
+.sat-icon.selected {
+  transform: scale(2);
+  z-index: 1000 !important;
+  animation: sat-bob 2.5s ease-in-out infinite;
+}
+.sat-icon.selected span {
+  color: #fbbf24 !important;
+  filter:
+    drop-shadow(0 0 3px #fbbf24)
+    drop-shadow(0 0 10px rgba(251, 191, 36, 0.8))
+    drop-shadow(0 0 20px rgba(251, 191, 36, 0.4));
+}
+@keyframes sat-bob {
+  0%, 100% { transform: scale(2) translateY(0); }
+  50% { transform: scale(2) translateY(-1px); }
+}
+
+/* ============================================================
    Map / Globe area
    ============================================================ */
 

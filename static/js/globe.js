@@ -1,8 +1,19 @@
 // 3D globe view backed by CesiumJS, lazy-loaded on first activation.
-// Uses OpenStreetMap imagery to avoid requiring a Cesium Ion token.
+// Uses OpenStreetMap imagery and satellite-shaped billboards.
 
 const CESIUM_VERSION = "1.118";
 const CESIUM_BASE = `https://cdn.jsdelivr.net/npm/cesium@${CESIUM_VERSION}/Build/Cesium`;
+
+const SAT_BILLBOARD = "data:image/svg+xml;utf8," + encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 20' width='36' height='20'>
+    <rect x='0' y='4' width='8' height='12' opacity='0.6' rx='1.2' fill='white'/>
+    <rect x='28' y='4' width='8' height='12' opacity='0.6' rx='1.2' fill='white'/>
+    <rect x='8' y='9' width='4' height='2' opacity='0.7' fill='white'/>
+    <rect x='24' y='9' width='4' height='2' opacity='0.7' fill='white'/>
+    <rect x='13' y='3' width='10' height='14' rx='2.4' fill='white'/>
+    <rect x='15.5' y='6' width='5' height='8' rx='0.8' fill='rgba(0,0,0,0.45)'/>
+  </svg>`
+);
 
 let cesiumLoading = null;
 
@@ -32,13 +43,14 @@ export class GlobeView {
     this.viewer = null;
     this.entities = new Map(); // norad_id -> Cesium.Entity
     this.observerEntity = null;
+    this.selectedId = null;
     this.onSelect = onSelect || (() => {});
   }
 
   async init() {
     if (this.viewer) return;
     const Cesium = await ensureCesiumLoaded();
-    Cesium.Ion.defaultAccessToken = ""; // No token needed; using OSM.
+    Cesium.Ion.defaultAccessToken = "";
 
     this.viewer = new Cesium.Viewer(this.containerId, {
       baseLayerPicker: false,
@@ -58,6 +70,7 @@ export class GlobeView {
 
     this.viewer.scene.globe.enableLighting = true;
     this.viewer.scene.skyBox.show = true;
+    this.viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#02030e");
 
     this.viewer.screenSpaceEventHandler.setInputAction((event) => {
       const picked = this.viewer.scene.pick(event.position);
@@ -84,12 +97,20 @@ export class GlobeView {
     if (!this.observerEntity) {
       this.observerEntity = this.viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
-        point: { pixelSize: 12, color: Cesium.Color.LIME, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+        point: {
+          pixelSize: 12,
+          color: Cesium.Color.fromCssColorString("#34d399"),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 2,
+        },
         label: {
           text: "You",
-          font: "12px sans-serif",
-          pixelOffset: new Cesium.Cartesian2(0, -18),
+          font: "12px Inter, sans-serif",
+          pixelOffset: new Cesium.Cartesian2(0, -22),
           fillColor: Cesium.Color.WHITE,
+          showBackground: true,
+          backgroundColor: Cesium.Color.fromCssColorString("rgba(5,8,22,0.85)"),
+          backgroundPadding: new Cesium.Cartesian2(6, 4),
         },
       });
     } else {
@@ -111,11 +132,13 @@ export class GlobeView {
       } else {
         const entity = this.viewer.entities.add({
           position: pos,
-          point: {
-            pixelSize: 6,
+          billboard: {
+            image: SAT_BILLBOARD,
+            width: 24,
+            height: 14,
             color: Cesium.Color.fromCssColorString(sat.color),
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 1,
+            scaleByDistance: new Cesium.NearFarScalar(1.5e6, 1.4, 4e7, 0.6),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
         });
         entity._satMeta = sat;
@@ -137,12 +160,21 @@ export class GlobeView {
   highlight(noradId) {
     if (!this.viewer) return;
     const Cesium = window.Cesium;
-    for (const [id, entity] of this.entities) {
-      const isSelected = id === noradId;
-      entity.point.pixelSize = isSelected ? 12 : 6;
-      entity.point.outlineColor = isSelected ? Cesium.Color.YELLOW : Cesium.Color.WHITE;
-      entity.point.outlineWidth = isSelected ? 2 : 1;
+    if (this.selectedId != null && this.selectedId !== noradId) {
+      const prev = this.entities.get(this.selectedId);
+      const meta = prev?._satMeta;
+      if (prev && meta) {
+        prev.billboard.color = Cesium.Color.fromCssColorString(meta.color);
+        prev.billboard.width = 24;
+        prev.billboard.height = 14;
+      }
     }
+    this.selectedId = noradId;
+    const entity = this.entities.get(noradId);
+    if (!entity) return;
+    entity.billboard.color = Cesium.Color.fromCssColorString("#fbbf24");
+    entity.billboard.width = 36;
+    entity.billboard.height = 20;
   }
 
   flyTo(lat, lon, alt_km) {
