@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="flex h-full flex-col">
+  <header class="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
+    <button id="toggle-sidebar" class="rounded p-2 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden" aria-label="Toggle sidebar">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <h1 class="flex items-center gap-2 text-lg font-semibold">
+      <span aria-hidden="true">🛰️</span>
+      <span>Satellite Tracker</span>
+    </h1>
+
+    <div class="relative ml-4 flex-1 max-w-md">
+      <input id="search-input" type="search" placeholder="Search by name or NORAD ID…"
+             class="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:placeholder-slate-500" />
+      <div id="search-results" class="absolute left-0 right-0 top-full z-30 mt-1 hidden max-h-80 overflow-auto rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"></div>
+    </div>
+
+    <div class="ml-auto flex items-center gap-1">
+      <div class="hidden rounded-md border border-slate-300 dark:border-slate-700 sm:flex" role="group" aria-label="View mode">
+        <button data-view="map" class="view-btn px-3 py-1.5 text-xs font-medium">2D Map</button>
+        <button data-view="globe" class="view-btn px-3 py-1.5 text-xs font-medium border-l border-slate-300 dark:border-slate-700">3D Globe</button>
+      </div>
+      <button id="locate-me" class="rounded p-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800" title="Use my location">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button id="theme-toggle" class="rounded p-2 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Toggle dark mode">
+        <svg xmlns="http://www.w3.org/2000/svg" class="block h-5 w-5 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-5 w-5 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <aside id="sidebar" class="hidden w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:block">
+      <section class="mb-6">
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Layers</h2>
+        <ul id="group-list" class="space-y-1">
+          {% for g in groups %}
+          <li>
+            <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+              <input type="checkbox" data-group="{{ g.id }}" {% if g.default_visible %}checked{% endif %}
+                     class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span class="inline-block h-3 w-3 rounded-full" style="background-color: {{ g.color }};"></span>
+              <span>{{ g.name }}</span>
+              <span class="ml-auto text-xs text-slate-400" data-group-count="{{ g.id }}"></span>
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="mb-6">
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Favorites</h2>
+        <ul id="favorites-list" class="space-y-1 text-sm">
+          <li class="px-2 py-1 text-xs italic text-slate-400">No favorites yet — star a satellite to save it.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Observer</h2>
+        <div class="space-y-2 text-sm">
+          <label class="block">
+            <span class="text-xs text-slate-500">Latitude</span>
+            <input id="obs-lat" type="number" step="0.001" placeholder="37.7749"
+                   class="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-800" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-500">Longitude</span>
+            <input id="obs-lon" type="number" step="0.001" placeholder="-122.4194"
+                   class="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-800" />
+          </label>
+          <p class="text-xs text-slate-400">Used for pass predictions.</p>
+        </div>
+      </section>
+    </aside>
+
+    <main class="relative flex-1 overflow-hidden">
+      <div id="map-view" class="absolute inset-0"></div>
+      <div id="globe-view" class="absolute inset-0 hidden"></div>
+
+      <div id="status" class="absolute bottom-2 left-2 z-10 rounded bg-slate-900/70 px-2 py-1 text-xs text-white backdrop-blur">
+        Loading…
+      </div>
+    </main>
+
+    <aside id="detail-panel" class="hidden w-96 shrink-0 overflow-y-auto border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:block">
+      <div id="detail-empty" class="p-6 text-sm text-slate-400">
+        Click a satellite on the map to see details and upcoming passes.
+      </div>
+      <div id="detail-content" class="hidden">
+        <div class="border-b border-slate-200 p-4 dark:border-slate-800">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h2 id="detail-name" class="text-lg font-semibold"></h2>
+              <p class="text-xs text-slate-500">NORAD <span id="detail-norad"></span></p>
+            </div>
+            <button id="detail-favorite" class="rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle favorite">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </button>
+          </div>
+          <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <dt class="text-slate-500">Latitude</dt><dd id="detail-lat" class="font-mono"></dd>
+            <dt class="text-slate-500">Longitude</dt><dd id="detail-lon" class="font-mono"></dd>
+            <dt class="text-slate-500">Altitude</dt><dd id="detail-alt" class="font-mono"></dd>
+            <dt class="text-slate-500">Velocity</dt><dd id="detail-vel" class="font-mono"></dd>
+          </dl>
+        </div>
+
+        <div class="p-4">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Upcoming Passes</h3>
+            <button id="passes-refresh" class="text-xs text-indigo-600 hover:underline">Refresh</button>
+          </div>
+          <div id="passes-status" class="text-xs text-slate-400">Set observer location to see passes.</div>
+          <ol id="passes-list" class="mt-2 space-y-2 text-xs"></ol>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<style>
+  .view-btn { background: transparent; }
+  .view-btn[aria-pressed="true"] { background-color: rgb(99 102 241); color: white; }
+  .satellite-marker { transition: opacity 0.3s; }
+  .leaflet-tooltip.sat-tooltip { background: rgba(15,23,42,0.85); color: white; border: none; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,31 @@
+html, body { height: 100%; }
+
+#map-view, #globe-view { background: #0f172a; }
+
+.leaflet-container { background: #0f172a; }
+
+.leaflet-tooltip.sat-tooltip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.leaflet-tooltip.sat-tooltip:before { display: none; }
+
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.search-result:hover { background: rgba(99, 102, 241, 0.1); }
+.search-result .badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(100, 116, 139, 0.2);
+  color: rgb(100, 116, 139);
+}
+
+.favorite-active { fill: rgb(250 204 21); color: rgb(250 204 21); }

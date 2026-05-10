@@ -1,0 +1,175 @@
+"""REST API endpoints.
+
+All endpoints return JSON. The shape is `{ "data": ..., "error": null }`
+or `{ "data": null, "error": "message" }`. Group lookups and per-satellite
+queries delegate to the TLE cache so we don't hammer CelesTrak.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from flask import Blueprint, current_app, jsonify, request
+from skyfield.api import EarthSatellite
+
+from .satellites.celestrak import CelestrakError, fetch_tles
+from .satellites.compute import build_satellite, position_now, predict_passes
+from .satellites.groups import GROUPS, get_group, serialize_group
+from .satellites.tle_cache import TLECache
+
+logger = logging.getLogger(__name__)
+
+bp = Blueprint("api", __name__, url_prefix="/api")
+
+
+def _cache() -> TLECache:
+    return current_app.extensions["tle_cache"]
+
+
+def _ok(data, status: int = 200):
+    return jsonify({"data": data, "error": None}), status
+
+
+def _err(message: str, status: int = 400):
+    return jsonify({"data": None, "error": message}), status
+
+
+def _load_group_tles(group_id: str):
+    group = get_group(group_id)
+    if not group:
+        return None, _err(f"Unknown group: {group_id}", 404)
+    try:
+        tles = _cache().get(group.id, lambda: fetch_tles(group.query))
+    except CelestrakError as exc:
+        logger.exception("CelesTrak error for %s", group_id)
+        return None, _err(str(exc), 502)
+    return (group, tles), None
+
+
+@bp.get("/groups")
+def list_groups():
+    return _ok([serialize_group(g) for g in GROUPS])
+
+
+@bp.get("/groups/<group_id>/satellites")
+def group_satellites(group_id: str):
+    result, error = _load_group_tles(group_id)
+    if error:
+        return error
+    group, tles = result
+    out = []
+    for tle in tles:
+        try:
+            sat = build_satellite(tle)
+            pos = position_now(sat)
+            pos["group"] = group.id
+            pos["color"] = group.color
+            out.append(pos)
+        except Exception:
+            logger.exception("Failed to compute position for %s", tle[0])
+    return _ok(out)
+
+
+@bp.get("/satellites/<int:norad_id>")
+def satellite_detail(norad_id: int):
+    sat = _find_satellite_by_norad(norad_id)
+    if not sat:
+        return _err(f"Satellite {norad_id} not found", 404)
+    return _ok(position_now(sat))
+
+
+@bp.get("/satellites/<int:norad_id>/passes")
+def satellite_passes(norad_id: int):
+    try:
+        lat = float(request.args["lat"])
+        lon = float(request.args["lon"])
+    except (KeyError, ValueError):
+        return _err("Required query params: lat, lon (floats)")
+
+    days = max(1, min(int(request.args.get("days", 5)), 14))
+    min_alt = float(request.args.get("min_alt", 10.0))
+
+    sat = _find_satellite_by_norad(norad_id)
+    if not sat:
+        return _err(f"Satellite {norad_id} not found", 404)
+
+    passes = predict_passes(sat, lat, lon, days=days, min_altitude_deg=min_alt)
+    return _ok({"satellite": sat.name, "norad_id": int(sat.model.satnum), "passes": passes})
+
+
+@bp.get("/positions")
+def live_positions():
+    """Get current positions for a comma-separated list of NORAD IDs.
+
+    Used by the frontend's live-update polling — small payload, no group fetch.
+    """
+    ids_param = request.args.get("norad_ids", "")
+    try:
+        ids = [int(x) for x in ids_param.split(",") if x.strip()]
+    except ValueError:
+        return _err("norad_ids must be comma-separated integers")
+    if not ids:
+        return _ok([])
+
+    out = []
+    for nid in ids:
+        sat = _find_satellite_by_norad(nid)
+        if sat:
+            out.append(position_now(sat))
+    return _ok(out)
+
+
+@bp.get("/search")
+def search():
+    """Search across all default-visible groups by name or NORAD ID."""
+    q = request.args.get("q", "").strip().lower()
+    if len(q) < 2:
+        return _err("Query must be at least 2 characters")
+
+    matches = []
+    for group in GROUPS:
+        if not group.default_visible and group.id != "starlink":
+            # Skip non-default groups except starlink (which is searched on demand)
+            continue
+        try:
+            tles = _cache().get(group.id, lambda g=group: fetch_tles(g.query))
+        except CelestrakError:
+            continue
+        for tle in tles:
+            name = tle[0].lower()
+            norad = _norad_from_tle(tle)
+            if q in name or (norad is not None and q == str(norad)):
+                matches.append({
+                    "name": tle[0],
+                    "norad_id": norad,
+                    "group": group.id,
+                })
+                if len(matches) >= 50:
+                    break
+        if len(matches) >= 50:
+            break
+    return _ok(matches)
+
+
+@bp.get("/cache/stats")
+def cache_stats():
+    return _ok(_cache().stats())
+
+
+def _norad_from_tle(tle: tuple[str, str, str]) -> int | None:
+    """Parse NORAD catalog number from TLE line 1 (cols 3-7)."""
+    try:
+        return int(tle[1][2:7])
+    except (IndexError, ValueError):
+        return None
+
+
+def _find_satellite_by_norad(norad_id: int) -> EarthSatellite | None:
+    """Find a satellite by NORAD ID via direct CATNR query (cached per id)."""
+    try:
+        tles = _cache().get(f"norad:{norad_id}", lambda: fetch_tles(f"CATNR={norad_id}"))
+    except CelestrakError:
+        return None
+    if not tles:
+        return None
+    return build_satellite(tles[0])
