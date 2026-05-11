@@ -695,6 +695,96 @@ h1, h2, h3, .font-display {
 .sensor-note strong { color: var(--accent-cyan); font-weight: 600; }
 
 /* ============================================================
+   Imagery card (Imagery: free vs paid)
+   ============================================================ */
+
+.imagery-card {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.imagery-card.is-free {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.07), rgba(15, 23, 42, 0.55));
+}
+.imagery-card.is-paid {
+  border-color: rgba(251, 191, 36, 0.30);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.05), rgba(15, 23, 42, 0.55));
+}
+
+.img-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Space Grotesk", sans-serif;
+}
+.img-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+}
+.img-tag.free {
+  color: var(--accent-aurora);
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(52, 211, 153, 0.10);
+}
+.img-tag.paid {
+  color: var(--accent-amber);
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.10);
+}
+.img-provider {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.img-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-subtle);
+}
+.img-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: all 150ms;
+  border: 1px solid;
+}
+.imagery-card.is-free .img-action {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: var(--accent-aurora);
+}
+.imagery-card.is-free .img-action:hover {
+  background: rgba(52, 211, 153, 0.22);
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.30);
+}
+.imagery-card.is-paid .img-action {
+  background: rgba(251, 191, 36, 0.10);
+  border-color: rgba(251, 191, 36, 0.40);
+  color: var(--accent-amber);
+}
+.imagery-card.is-paid .img-action:hover {
+  background: rgba(251, 191, 36, 0.20);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.30);
+}
+
+/* ============================================================
    Map / Globe area
    ============================================================ */
 
@@ -704,7 +794,7 @@ h1, h2, h3, .font-display {
   overflow: hidden;
 }
 
-#map-view, #globe-view {
+#map-view, #globe-view, #sky-view {
   position: absolute;
   inset: 0;
 }
@@ -863,3 +953,433 @@ h1, h2, h3, .font-display {
 
 .fade-in { animation: fadeSlideIn 200ms ease-out; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ============================================================
+   Naked-eye passes toggle (Observer section)
+   ============================================================ */
+
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+  transition: all 150ms;
+}
+.toggle-row:hover { border-color: rgba(34, 211, 238, 0.35); background: rgba(15, 23, 42, 0.65); }
+.toggle-row input { position: absolute; opacity: 0; pointer-events: none; }
+
+.toggle-track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: background 150ms;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 150ms ease, box-shadow 150ms;
+}
+.toggle-row input:checked + .toggle-track {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+.toggle-row input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(12px);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+.toggle-text strong { font-weight: 600; }
+.toggle-text em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--text-subtle);
+}
+
+/* ============================================================
+   Pass visibility chips
+   ============================================================ */
+
+.pass-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vis-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--border-soft);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.vis-chip.vis-yes {
+  color: var(--accent-amber);
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.10);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.20) inset, 0 0 8px rgba(251, 191, 36, 0.18);
+}
+.vis-chip.vis-shadow {
+  color: var(--accent-violet);
+  border-color: rgba(167, 139, 250, 0.30);
+}
+.vis-chip.vis-day {
+  color: var(--text-subtle);
+}
+
+.pass-card.is-visible {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.07), rgba(15, 23, 42, 0.6));
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.08), 0 6px 20px rgba(251, 191, 36, 0.08);
+}
+.pass-card.is-visible:hover {
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.12), 0 8px 24px rgba(251, 191, 36, 0.12);
+}
+
+.visible-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 10px;
+  color: var(--accent-amber);
+  background: rgba(251, 191, 36, 0.10);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  letter-spacing: 0.03em;
+}
+
+/* ============================================================
+   Terminator + orbit trail (Leaflet overlays)
+   ============================================================ */
+
+.terminator-poly {
+  filter: blur(0.5px);
+  mix-blend-mode: multiply;
+}
+
+/* ============================================================
+   Sky view — observer-centered polar radar
+   ============================================================ */
+
+#sky-view:not(.hidden) {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse 600px 600px at center, rgba(34, 211, 238, 0.04), transparent 70%),
+    var(--bg-base);
+  overflow: hidden;
+}
+
+.skyview-svg {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.10));
+}
+
+.skyview-cardinal {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.skyview-cardinal.n { fill: var(--accent-cyan); }
+
+.skyview-alt-label {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 9px;
+  fill: var(--text-subtle);
+}
+
+.skyview-dot {
+  cursor: pointer;
+  transition: r 120ms;
+}
+.skyview-dot:hover { r: 6 !important; }
+.skyview-dot.selected {
+  filter: drop-shadow(0 0 8px #fbbf24) url(#dot-glow);
+}
+
+.skyview-sel-ring {
+  animation: skyview-sel-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+  opacity: 0.7;
+}
+@keyframes skyview-sel-pulse {
+  0%, 100% { opacity: 0.4; r: 11; }
+  50% { opacity: 0.85; r: 14; }
+}
+
+.skyview-sel-label {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--accent-amber);
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(5, 8, 22, 0.9);
+  stroke-width: 3px;
+}
+
+.skyview-arc {
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  animation: skyview-arc-draw 1.4s ease-out;
+}
+@keyframes skyview-arc-draw {
+  from { stroke-dasharray: 600; stroke-dashoffset: 600; }
+  to { stroke-dasharray: 600; stroke-dashoffset: 0; }
+}
+
+.skyview-arc-marker { /* rise / set / culmination dots */ }
+.skyview-arc-label {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--text-primary);
+  paint-order: stroke;
+  stroke: rgba(5, 8, 22, 0.9);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
+.skyview-footer {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  fill: var(--text-subtle);
+  letter-spacing: 0.04em;
+}
+
+.skyview-tooltip {
+  position: absolute;
+  z-index: 30;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(5, 8, 22, 0.92);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: "Inter", sans-serif;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.skyview-tooltip strong { font-weight: 600; }
+.skyview-tt-row {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.skyview-empty {
+  max-width: 380px;
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+}
+.skyview-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.20);
+  display: grid;
+  place-items: center;
+  color: var(--accent-cyan);
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+.skyview-empty-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.skyview-empty-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   Weather time scrubber (3D globe overlay)
+   ============================================================ */
+
+.weather-controls {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: rgba(5, 8, 22, 0.78);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-family: "Inter", sans-serif;
+  min-width: 320px;
+}
+
+.weather-btn {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: rgba(34, 211, 238, 0.10);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  color: var(--accent-cyan);
+  cursor: pointer;
+  transition: all 150ms;
+  flex-shrink: 0;
+}
+.weather-btn:hover {
+  background: rgba(34, 211, 238, 0.20);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+}
+.weather-btn svg { width: 14px; height: 14px; }
+.weather-btn .hidden { display: none; }
+
+#weather-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 160px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.25) 0%, rgba(34, 211, 238, 0.55) 100%);
+  outline: none;
+  cursor: pointer;
+}
+#weather-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+  border: 2px solid var(--bg-base);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+  cursor: grab;
+}
+#weather-slider::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+  border: 2px solid var(--bg-base);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+  cursor: grab;
+}
+
+.weather-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+.weather-time {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.weather-source {
+  font-size: 9px;
+  color: var(--text-subtle);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Onboard view empty state
+   ============================================================ */
+
+.onboard-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse 700px 500px at center, rgba(34, 211, 238, 0.08), transparent 70%);
+}
+.onboard-empty.hidden { display: none; }
+
+.onboard-empty-card {
+  pointer-events: auto;
+  max-width: 360px;
+  padding: 28px 26px;
+  border-radius: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+.onboard-empty-card svg {
+  width: 32px; height: 32px;
+  margin-bottom: 14px;
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.55));
+}
+.onboard-empty-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.onboard-empty-text {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Pass cards become buttons in sky-view flow */
+.pass-card { cursor: pointer; }
+.pass-card:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+.orbit-trail {
+  filter: drop-shadow(0 0 4px currentColor);
+  animation: orbit-pulse 3s ease-in-out infinite;
+}
+@keyframes orbit-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.55; }
+}

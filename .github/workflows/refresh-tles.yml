@@ -1,0 +1,73 @@
+name: Refresh TLEs
+
+# CelesTrak asks clients to cache for at least 2h. We refresh every 4h and
+# commit the raw TLE text into data/groups/, which the static frontend
+# fetches on page load. No live CelesTrak fetches happen from the browser.
+on:
+  schedule:
+    - cron: "27 */4 * * *"   # 00:27, 04:27, 08:27, ... avoids the top-of-the-hour rush
+  workflow_dispatch:          # allow manual runs from the Actions tab
+
+permissions:
+  contents: write             # needed to commit fresh TLE files back to main
+
+concurrency:
+  group: refresh-tles
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch fresh TLEs from CelesTrak
+        run: |
+          set -euo pipefail
+          mkdir -p data/groups
+          UA="satellite-tracker/0.1 (+https://github.com/${{ github.repository }})"
+          declare -A QUERIES=(
+            [stations]="GROUP=stations"
+            [visual]="GROUP=visual"
+            [hubble]="CATNR=20580"
+            [weather]="GROUP=weather"
+            [gps]="GROUP=gps-ops"
+            [starlink]="GROUP=starlink"
+            [science]="GROUP=science"
+            [geo]="GROUP=geo"
+          )
+          for id in "${!QUERIES[@]}"; do
+            q="${QUERIES[$id]}"
+            tmp=$(mktemp)
+            echo "→ $id ($q)"
+            if curl -sS --fail -A "$UA" \
+                "https://celestrak.org/NORAD/elements/gp.php?${q}&FORMAT=tle" \
+                -o "$tmp"; then
+              # Skip CelesTrak's "data hasn't updated" / error responses.
+              if grep -q '^[12] ' "$tmp"; then
+                mv "$tmp" "data/groups/${id}.txt"
+                lines=$(wc -l < "data/groups/${id}.txt")
+                echo "  ✓ $lines lines saved"
+              else
+                echo "  ⚠ no fresh TLEs (rate-limited or empty) — keeping existing file"
+                rm -f "$tmp"
+              fi
+            else
+              echo "  ✗ fetch failed — keeping existing file"
+              rm -f "$tmp"
+            fi
+            sleep 2  # be polite
+          done
+
+      - name: Commit refreshed TLEs
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/groups/
+          if git diff --cached --quiet; then
+            echo "No TLE changes — skipping commit."
+          else
+            git commit -m "chore(data): refresh TLEs ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi

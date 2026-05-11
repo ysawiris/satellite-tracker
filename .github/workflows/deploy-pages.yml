@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+# Publishes the static site (index.html + static/ + data/) on every push
+# to main and after each TLE-refresh commit. No build step needed — the
+# site is pure static.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Single concurrent deploy; cancel in-flight runs if a newer push arrives.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage public directory
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r static _site/
+          cp -r data _site/
+          # GitHub Pages serves a 404.html fallback automatically; keep root
+          # SPA-friendly by also copying index.html as 404.html.
+          cp index.html _site/404.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

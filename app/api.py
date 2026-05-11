@@ -13,9 +13,16 @@ from flask import Blueprint, current_app, jsonify, request
 from skyfield.api import EarthSatellite
 
 from .satellites.celestrak import CelestrakError, fetch_tles
-from .satellites.compute import build_satellite, position_now, predict_passes
+from .satellites.compute import (
+    build_satellite,
+    orbit_track,
+    position_now,
+    predict_passes,
+    sky_track,
+    sun_position_now,
+)
 from .satellites.groups import GROUPS, get_group, serialize_group
-from .satellites.metadata import get_sensor_info
+from .satellites.metadata import get_imagery_info, get_sensor_info, serialize_imagery
 from .satellites.tle_cache import TLECache
 
 logger = logging.getLogger(__name__)
@@ -69,6 +76,7 @@ def group_satellites(group_id: str):
             pos["sensor_type"] = info.sensor_type
             pos["all_weather"] = info.all_weather
             pos["sensor_description"] = info.description
+            pos["imagery"] = serialize_imagery(get_imagery_info(pos["norad_id"], pos["name"]))
             out.append(pos)
         except Exception:
             logger.exception("Failed to compute position for %s", tle[0])
@@ -85,6 +93,7 @@ def satellite_detail(norad_id: int):
     pos["sensor_type"] = info.sensor_type
     pos["all_weather"] = info.all_weather
     pos["sensor_description"] = info.description
+    pos["imagery"] = serialize_imagery(get_imagery_info(pos["norad_id"], pos["name"]))
     return _ok(pos)
 
 
@@ -98,13 +107,70 @@ def satellite_passes(norad_id: int):
 
     days = max(1, min(int(request.args.get("days", 5)), 14))
     min_alt = float(request.args.get("min_alt", 10.0))
+    visible_only = request.args.get("visible_only", "").lower() in ("1", "true", "yes")
 
     sat = _find_satellite_by_norad(norad_id)
     if not sat:
         return _err(f"Satellite {norad_id} not found", 404)
 
-    passes = predict_passes(sat, lat, lon, days=days, min_altitude_deg=min_alt)
+    passes = predict_passes(
+        sat, lat, lon, days=days, min_altitude_deg=min_alt, visible_only=visible_only,
+    )
     return _ok({"satellite": sat.name, "norad_id": int(sat.model.satnum), "passes": passes})
+
+
+@bp.get("/satellites/<int:norad_id>/orbit")
+def satellite_orbit(norad_id: int):
+    """Ground-track samples for the next N minutes — used to draw orbit trails."""
+    minutes = max(1, min(int(request.args.get("minutes", 120)), 720))
+    step = max(5, min(int(request.args.get("step_seconds", 30)), 300))
+
+    sat = _find_satellite_by_norad(norad_id)
+    if not sat:
+        return _err(f"Satellite {norad_id} not found", 404)
+
+    samples = orbit_track(sat, minutes=minutes, step_seconds=step)
+    return _ok({
+        "satellite": sat.name,
+        "norad_id": int(sat.model.satnum),
+        "samples": samples,
+    })
+
+
+@bp.get("/sun")
+def sun_position():
+    """Current sub-solar point — frontend uses this to draw the terminator."""
+    return _ok(sun_position_now())
+
+
+@bp.get("/satellites/<int:norad_id>/skytrack")
+def satellite_skytrack(norad_id: int):
+    """Alt/az samples over a time window — used to draw pass arcs on the sky radar.
+
+    Required: lat, lon, start (ISO8601), end (ISO8601). Optional: step_seconds (default 10).
+    """
+    from datetime import datetime as _dt
+
+    try:
+        lat = float(request.args["lat"])
+        lon = float(request.args["lon"])
+        start = _dt.fromisoformat(request.args["start"].replace("Z", "+00:00"))
+        end = _dt.fromisoformat(request.args["end"].replace("Z", "+00:00"))
+    except (KeyError, ValueError) as exc:
+        return _err(f"Required: lat, lon, start, end (ISO). {exc}")
+
+    step = int(request.args.get("step_seconds", 10))
+
+    sat = _find_satellite_by_norad(norad_id)
+    if not sat:
+        return _err(f"Satellite {norad_id} not found", 404)
+
+    samples = sky_track(sat, lat, lon, start, end, step_seconds=step)
+    return _ok({
+        "norad_id": int(sat.model.satnum),
+        "satellite": sat.name,
+        "samples": samples,
+    })
 
 
 @bp.get("/positions")

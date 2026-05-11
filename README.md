@@ -1,110 +1,107 @@
 # Satellite Tracker
 
-Real-time satellite tracking on a 2D map and 3D globe, powered by [CelesTrak](https://celestrak.org/) TLE data and [Skyfield](https://rhodesmill.org/skyfield/).
+Live web app that tracks every visible satellite over Earth — 2D map, 3D globe, observer-centered sky radar, and onboard "ride along" camera. Pure static frontend; orbital math runs entirely in the browser.
+
+**Live demo:** https://ysawiris.github.io/satellite-tracker/
 
 ## Features
 
-- Live satellite positions for ISS, Hubble, Starlink, GPS, weather satellites, and more
-- 2D map (Leaflet + OpenStreetMap) and 3D globe (CesiumJS) views
-- Pass predictions for any satellite at your location
-- Search by name or NORAD ID
-- Saved favorites (persisted in localStorage)
-- Dark mode
-- Installable as a PWA
-- REST API for programmatic access
-- No API keys or accounts required — CelesTrak is free and open
-
-## Quick start
-
-### Local development
-
-```bash
-# Python 3.11+
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-
-cp .env.example .env  # tweak if you like
-flask --app app.main run --debug
-```
-
-Open http://127.0.0.1:5000.
-
-### Docker
-
-```bash
-docker build -t satellite-tracker .
-docker run -p 5000:5000 satellite-tracker
-```
-
-## REST API
-
-All endpoints return `{ "data": ..., "error": null }` or `{ "data": null, "error": "message" }`.
-
-| Endpoint                                          | Description                                     |
-| ------------------------------------------------- | ----------------------------------------------- |
-| `GET /api/groups`                                 | List satellite groups                           |
-| `GET /api/groups/<group_id>/satellites`           | Current positions for all satellites in a group |
-| `GET /api/satellites/<norad_id>`                  | Current position of a specific satellite        |
-| `GET /api/satellites/<norad_id>/passes?lat&lon`   | Upcoming passes over an observer location       |
-| `GET /api/positions?norad_ids=25544,20580`        | Current positions for a list of NORAD IDs       |
-| `GET /api/search?q=iss`                           | Search by name or NORAD ID                      |
-| `GET /health`                                     | Liveness check                                  |
-
-Example:
-
-```bash
-curl 'http://127.0.0.1:5000/api/satellites/25544/passes?lat=37.7749&lon=-122.4194&days=3'
-```
-
-## Testing
-
-```bash
-pytest          # all tests
-ruff check .    # lint
-```
-
-CI runs both on every push (see `.github/workflows/ci.yml`).
-
-## Configuration
-
-All config is loaded from environment variables (or `.env`). See `.env.example` for the full list:
-
-| Variable                  | Default      | Notes                                                  |
-| ------------------------- | ------------ | ------------------------------------------------------ |
-| `TLE_CACHE_TTL_MINUTES`   | `120`        | CelesTrak asks clients to cache for at least 2 hours   |
-| `FLASK_SECRET_KEY`        | `change-me`  | Generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `HOST`                    | `127.0.0.1`  |                                                        |
-| `PORT`                    | `5000`       |                                                        |
+- **2D map** (Leaflet + dark CartoDB tiles) with day/night terminator and sub-solar marker
+- **3D globe** (CesiumJS) with real-time lighting and a NASA MODIS Aqua + Terra cloud-cover composite, plus a play/scrub timeline of the past week's clouds
+- **Sky view** — observer-centered polar radar showing what's overhead right now; click any "✦ Visible" pass and the predicted arc traces across the dial
+- **Onboard view** — locks the camera to any satellite and follows it across orbit
+- **Pass predictions** with a "naked-eye only" filter (sat sunlit + observer in twilight or darker)
+- **Imagery integration** — for each satellite, surfaces where to view (free) or buy (paid) imagery: Landsat → USGS, Sentinel → Copernicus Browser, MODIS → Worldview, WorldView → Maxar, Pléiades → Airbus, etc.
+- **Search**, **favorites** (localStorage), **PWA** with offline shell
 
 ## Architecture
 
-```
-app/
-├── main.py              # Flask app factory
-├── config.py            # Env-driven config
-├── api.py               # REST endpoints
-└── satellites/
-    ├── groups.py        # Group definitions (ISS, Starlink, ...)
-    ├── celestrak.py     # CelesTrak GP TLE client
-    ├── tle_cache.py     # In-memory TTL cache
-    └── compute.py       # Skyfield position + pass prediction
+Pure static — deployed to GitHub Pages, no server-side execution.
 
+```
+index.html                 ← single-page app entry
 static/
+├── css/app.css            ← design system (Aurora Glass)
 ├── js/
-│   ├── app.js           # Entry point
-│   ├── api.js           # REST wrapper
-│   ├── state.js         # Tiny pub/sub store
-│   ├── map.js           # Leaflet 2D map
-│   ├── globe.js         # CesiumJS 3D globe (lazy-loaded)
-│   ├── favorites.js     # localStorage favorites
-│   └── sw.js            # Service worker
-└── manifest.webmanifest # PWA manifest
-
-templates/
-├── base.html            # Layout + Tailwind + dark-mode bootstrap
-└── index.html           # Single page application
+│   ├── app.js             ← entry point + UI wiring
+│   ├── api.js             ← facade — calls local compute, no HTTP
+│   ├── sat-core.js        ← satellite.js wrapper: positions, alt/az, orbits
+│   ├── sun-math.js        ← sub-solar point + satellite illumination
+│   ├── passes.js          ← rise / culmination / set + visibility
+│   ├── tle-store.js       ← fetches data/groups/<id>.txt, builds satrecs
+│   ├── sat-data.js        ← group definitions + sensor & imagery metadata
+│   ├── map.js             ← Leaflet view
+│   ├── globe.js           ← CesiumJS view (lazy-loaded)
+│   ├── skyview.js         ← SVG polar radar
+│   └── sw.js              ← service worker (offline shell)
+└── manifest.webmanifest
+data/groups/<id>.txt       ← raw CelesTrak TLE files, refreshed every 4h
+                             by .github/workflows/refresh-tles.yml
+.github/workflows/
+├── refresh-tles.yml       ← cron: fetch CelesTrak → commit data/groups/
+├── deploy-pages.yml       ← deploy to GitHub Pages on every push
+└── ci.yml                 ← legacy: Python tests for the reference impl
 ```
+
+The Flask backend in `app/` is the original reference implementation and the source of truth for the orbital math (mirrored test-for-test in JS). It's not used by the live deploy.
+
+## How it stays current with no backend
+
+```
+┌────────────────────────────────────┐       ┌─────────────────────────────────┐
+│  GitHub Action (cron, every 4h)    │──────▶│  data/groups/*.txt commits      │
+│  fetches CelesTrak TLEs            │       │  pushed to main                 │
+└────────────────────────────────────┘       └─────────────────────────────────┘
+                                                          │
+                                                          ▼
+┌────────────────────────────────────┐       ┌─────────────────────────────────┐
+│  Browser loads static site from    │◀──────│  GitHub Pages deploys main      │
+│  GitHub Pages                      │       │  on every push (~30 s)          │
+└────────────────────────────────────┘       └─────────────────────────────────┘
+       │
+       ▼
+┌────────────────────────────────────┐
+│  satellite.js (SGP4) propagates    │
+│  positions in-browser, every 30 s  │
+└────────────────────────────────────┘
+```
+
+No CORS issues (data lives at the same origin), no rate limits, no cold starts, $0 hosting.
+
+## Local development
+
+```bash
+# Pure static — open the page, that's it.
+python3 -m http.server 5051   # any static server
+open http://127.0.0.1:5051
+```
+
+For the legacy Flask reference implementation:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+flask --app app.main run --debug
+pytest        # runs the Skyfield-based unit tests
+```
+
+## Tech stack
+
+- **satellite.js** v5 — SGP4 orbital propagation
+- **Leaflet** + CartoDB dark tiles — 2D map
+- **CesiumJS** + ESRI World Imagery + NASA GIBS — 3D globe + clouds
+- **NASA GIBS MODIS Aqua + Terra** — composite cloud cover with time-scrub
+- **Tailwind CSS** + custom design system — UI
+- **Inter** + **Space Grotesk** — typography
+- **GitHub Pages** + **GitHub Actions** — hosting + data refresh + CI
+
+Original Python reference uses **Flask**, **Skyfield**, **NumPy**, **Requests**.
+
+## Data sources
+
+- **CelesTrak** — TLEs (2-line orbital elements), free, no key
+- **NASA GIBS** — global cloud imagery (MODIS, VIIRS), free, no key
+- **OpenStreetMap / CartoDB / ESRI** — basemaps
 
 ## License
 

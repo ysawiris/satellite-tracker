@@ -31,6 +31,8 @@
       <div class="view-toggle hidden sm:inline-flex" role="group" aria-label="View mode">
         <button data-view="map" class="view-btn">2D Map</button>
         <button data-view="globe" class="view-btn">3D Globe</button>
+        <button data-view="sky" class="view-btn">Sky</button>
+        <button data-view="onboard" class="view-btn" title="Ride along with the selected satellite">Onboard</button>
       </div>
       <button id="clouds-toggle" class="icon-btn hidden" title="Toggle live cloud cover" aria-pressed="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -95,6 +97,14 @@
             <input id="obs-lon" type="number" step="0.001" placeholder="-122.4194" class="text-input" />
           </div>
           <p class="text-[11px] text-[color:var(--text-subtle)]">Used for pass predictions.</p>
+          <label class="toggle-row" for="visible-only">
+            <input id="visible-only" type="checkbox" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-text">
+              <strong>✦ Naked-eye passes only</strong>
+              <em>Sat sunlit, observer in twilight or darker.</em>
+            </span>
+          </label>
         </div>
       </section>
     </aside>
@@ -103,6 +113,7 @@
     <main class="viewport">
       <div id="map-view"></div>
       <div id="globe-view" class="hidden"></div>
+      <div id="sky-view" class="hidden"></div>
 
       <div id="loading-overlay" class="loading-overlay">
         <div class="text-center">
@@ -120,6 +131,28 @@
       <div id="status" class="status-pill">
         <span class="status-dot"></span>
         <span id="status-text">Initializing…</span>
+      </div>
+
+      <div id="onboard-empty" class="onboard-empty hidden">
+        <div class="onboard-empty-card glass-strong">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 19l3-3m11-11l-3 3M9 15l-2.5 2.5a2.5 2.5 0 11-3.5-3.5L5.5 11.5M14.5 9.5L17 7m-7.5 7.5L7 17m9-12l3 3M11 13l3 3"/>
+          </svg>
+          <div class="onboard-empty-title">Pick a satellite to ride along</div>
+          <div class="onboard-empty-text">Search the catalog or click any marker on the map. The camera will lock onto it and follow it across orbit — you'll see Earth roll underneath.</div>
+        </div>
+      </div>
+
+      <div id="weather-controls" class="weather-controls hidden" aria-label="Weather time scrubber">
+        <button id="weather-play" class="weather-btn" aria-label="Play / pause cloud animation" title="Play / pause">
+          <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="icon-pause hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+        </button>
+        <input id="weather-slider" type="range" min="0" max="6" step="1" value="0" />
+        <div class="weather-meta">
+          <div id="weather-time" class="weather-time"></div>
+          <div class="weather-source">NASA GIBS · MODIS Aqua + Terra</div>
+        </div>
       </div>
     </main>
 
@@ -169,6 +202,7 @@
             <span id="detail-sensor-chip" class="sensor-chip"></span>
             <p id="detail-sensor-note" class="sensor-note"></p>
           </div>
+          <div id="detail-imagery" class="imagery-card hidden"></div>
         </div>
 
         <div class="passes-section">
