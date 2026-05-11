@@ -68,6 +68,7 @@ const skyView = new SkyView("sky-view", { onSelect: selectSatellite });
 
 setupViewToggle();
 setupSidebarToggle();
+setupDetailClose();
 setupSearch();
 setupObserverInputs();
 setupPassesRefresh();
@@ -172,6 +173,7 @@ function selectSatellite(sat) {
   const prev = store.get().selected;
   if (!prev || prev.norad_id !== sat.norad_id) skyView.clearPassArc();
   store.set({ selected: sat });
+  if (isMobile()) openDetailSheet();
   document.getElementById("detail-empty").classList.add("hidden");
   document.getElementById("detail-content").classList.remove("hidden");
   document.getElementById("detail-name").textContent = sat.name;
@@ -519,7 +521,48 @@ function updateWeatherControlsVisibility() {
 function setupSidebarToggle() {
   const btn = document.getElementById("toggle-sidebar");
   const sb = document.getElementById("sidebar");
-  btn.addEventListener("click", () => sb.classList.toggle("hidden"));
+  const backdrop = document.getElementById("sidebar-backdrop");
+  function open() {
+    sb.classList.remove("hidden");
+    if (backdrop) backdrop.classList.remove("hidden");
+  }
+  function close() {
+    sb.classList.add("hidden");
+    if (backdrop) backdrop.classList.add("hidden");
+  }
+  btn.addEventListener("click", () => sb.classList.contains("hidden") ? open() : close());
+  if (backdrop) backdrop.addEventListener("click", close);
+  // Below `lg` only: tapping a layer/group checkbox dismisses the drawer
+  // so the user immediately sees the map react.
+  sb.addEventListener("click", (e) => {
+    if (window.innerWidth >= 1024) return;
+    if (e.target.closest("[data-group]") || e.target.closest("#locate-me")) close();
+  });
+}
+
+// ---------- Mobile detail sheet ----------
+
+function isMobile() { return window.innerWidth < 1024; }
+
+function openDetailSheet() {
+  const panel = document.getElementById("detail-panel");
+  if (!panel) return;
+  // .open swaps display from none → block (mobile only — desktop keeps its
+  // own layout). The CSS keyframe handles the small fade-in.
+  panel.classList.add("open");
+  panel.classList.remove("hidden");
+}
+
+function closeDetailSheet() {
+  const panel = document.getElementById("detail-panel");
+  if (!panel) return;
+  panel.classList.remove("open");
+}
+
+function setupDetailClose() {
+  const btn = document.getElementById("detail-close");
+  if (!btn) return;
+  btn.addEventListener("click", closeDetailSheet);
 }
 
 // ---------- Search ----------

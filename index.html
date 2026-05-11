@@ -63,7 +63,7 @@
       </div>
 
       <div class="ml-auto flex items-center gap-2">
-        <div class="view-toggle hidden sm:inline-flex" role="group" aria-label="View mode">
+        <div class="view-toggle view-toggle-header hidden md:inline-flex" role="group" aria-label="View mode">
           <button data-view="map" class="view-btn">2D Map</button>
           <button data-view="globe" class="view-btn">3D Globe</button>
           <button data-view="sky" class="view-btn">Sky</button>
@@ -82,7 +82,8 @@
       </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
+      <div id="sidebar-backdrop" class="sidebar-backdrop hidden" aria-hidden="true"></div>
       <aside id="sidebar" class="sidebar hidden lg:block">
         <section class="section">
           <h2 class="section-title">
@@ -173,9 +174,20 @@
             <div class="weather-source">NASA GIBS · MODIS Aqua + Terra</div>
           </div>
         </div>
+
+        <!-- Mobile-only bottom view toggle. The header version is hidden under md. -->
+        <div class="view-toggle view-toggle-mobile md:hidden" role="group" aria-label="View mode">
+          <button data-view="map" class="view-btn">2D Map</button>
+          <button data-view="globe" class="view-btn">Globe</button>
+          <button data-view="sky" class="view-btn">Sky</button>
+          <button data-view="onboard" class="view-btn">Onboard</button>
+        </div>
       </main>
 
       <aside id="detail-panel" class="detail-panel hidden lg:block">
+        <button id="detail-close" class="detail-close md:hidden" aria-label="Close details">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+        </button>
         <div id="detail-empty" class="detail-empty">
           <div class="detail-empty-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">

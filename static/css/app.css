@@ -955,6 +955,168 @@ h1, h2, h3, .font-display {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ============================================================
+   Mobile layout (under 1024 px = no `lg` breakpoint)
+   ============================================================ */
+
+/* The duplicate view toggle that lives below md. It floats above the map at
+   the bottom of the viewport so all four views are reachable from a thumb. */
+.view-toggle-mobile {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 18;
+  padding: 4px;
+  background: rgba(5, 8, 22, 0.85);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  /* Slightly tighter buttons so all four fit on a 360-px viewport. */
+}
+.view-toggle-mobile .view-btn { padding: 6px 10px; font-size: 11px; }
+
+/* Mobile sidebar — slide-in drawer with backdrop. Below `lg`, the existing
+   `.hidden` toggle still flips the aside in/out; we just style the visible
+   state so it overlays the map instead of trying to take a flex column. */
+@media (max-width: 1023px) {
+  .sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(82vw, 320px);
+    z-index: 25;
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.55);
+    transform: translateX(0);
+    transition: transform 220ms ease;
+  }
+  .sidebar.hidden {
+    /* Override Tailwind's display:none so the slide-out animation can play. */
+    display: block !important;
+    transform: translateX(-105%);
+    pointer-events: none;
+  }
+}
+
+.sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  background: rgba(2, 3, 14, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeBackdropIn 200ms ease-out;
+}
+.sidebar-backdrop.hidden { display: none; }
+@keyframes fadeBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Detail panel as a bottom sheet under `lg`. It auto-shows when a satellite
+   is selected (toggled via the `open` class from app.js), and the floating
+   X button at the top-right dismisses it. */
+@media (max-width: 1023px) {
+  .detail-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-left: none;
+    border-top: 1px solid var(--border-strong);
+    border-radius: 18px 18px 0 0;
+    z-index: 22;
+    box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.55);
+    background: rgba(5, 8, 22, 0.94);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    /* Show when .open is on the panel; hide otherwise. We use display rather
+       than transform because some embedded browsers throttle transitions. */
+    opacity: 1;
+    animation: sheet-up 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .detail-panel:not(.open) { display: none; }
+  /* The Tailwind .hidden class still resolves to display: none through the
+     normal cascade, which matches our :not(.open) rule above — no conflict. */
+  /* A subtle drag-handle at the top of the sheet — visual cue that it slides. */
+  .detail-panel::before {
+    content: "";
+    position: absolute;
+    top: 6px; left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 4px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.35);
+  }
+  .detail-panel { padding-top: 6px; }
+  /* The empty state is mostly noise on mobile when the sheet is closed, but
+     keep it for the rare edge case where someone forces the sheet open without
+     a selection. */
+  .detail-empty { padding: 24px 20px; }
+}
+
+.detail-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: rgba(15, 23, 42, 0.7);
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 120ms;
+}
+.detail-close:hover {
+  color: var(--text-primary);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+/* Header polish on small screens — keep it from looking cramped. */
+@media (max-width: 639px) {
+  .app-header { padding: 0 12px; gap: 8px; }
+  .app-logo-text { font-size: 14px; }
+  .search-shell { margin: 0 4px; }
+  .search-input { height: 34px; font-size: 12px; padding: 0 10px 0 32px; }
+  .search-icon { left: 9px; width: 14px; height: 14px; }
+  /* Make the status pill smaller so it doesn't fight the bottom view toggle */
+  .status-pill { bottom: 76px; font-size: 10px; padding: 4px 9px; }
+}
+
+/* The clouds toggle is meaningful on globe view — keep it reachable, but on
+   tight headers it can wrap and break layout. Just hide it for ultra-narrow
+   widths; users can still toggle clouds inside the weather scrubber. */
+@media (max-width: 419px) {
+  #clouds-toggle { display: none !important; }
+}
+
+/* Weather scrubber sits high enough on mobile to clear the bottom view toggle. */
+@media (max-width: 1023px) {
+  .weather-controls {
+    bottom: 76px;
+    min-width: auto;
+    width: calc(100vw - 32px);
+    max-width: 360px;
+  }
+  #weather-slider { width: auto; flex: 1; min-width: 80px; }
+}
+
+/* Onboard empty card needs to not collide with the bottom view toggle. */
+@media (max-width: 1023px) {
+  .onboard-empty { padding-bottom: 80px; }
+}
+
+/* ============================================================
    Naked-eye passes toggle (Observer section)
    ============================================================ */
 
